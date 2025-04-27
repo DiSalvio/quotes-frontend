@@ -22,6 +22,7 @@
       </button>
     </form>
     <div v-if="addError" class="error">{{ addError }}</div>
+    <div v-if="deleteError" class="error">{{ deleteError }}</div>
 
     <div v-if="loading" class="loading">
       Loading quotes...
@@ -43,7 +44,11 @@
       <div class="controls">
         <button @click="prevQuote" class="nav-button">← Previous</button>
         <button @click="nextQuote" class="nav-button">Next →</button>
+        <button @click="deleteQuote" class="delete-button" :disabled="deleting">
+          {{ deleting ? 'Deleting...' : 'Delete' }}
+        </button>
       </div>
+
     </div>
   </div>
 </template>
@@ -113,6 +118,25 @@ export default {
         console.error(err)
       } finally {
         this.adding = false
+      }
+    },
+    async deleteQuote() {
+      if (!this.quotes.length) return
+      const quoteId = this.currentQuote.id
+      if (!confirm('Are you sure you want to delete this quote?')) return
+      this.deleting = true
+      this.deleteError = null
+      try {
+        await axios.delete(`/api/quotes/${quoteId}`)
+        this.quotes.splice(this.currentIndex, 1)
+        if (this.currentIndex >= this.quotes.length) {
+          this.currentIndex = Math.max(0, this.quotes.length - 1)
+        }
+      } catch (err) {
+        this.deleteError = 'Failed to delete quote. Please try again.'
+        console.error(err)
+      } finally {
+        this.deleting = false
       }
     }
   }
@@ -228,5 +252,22 @@ export default {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+.delete-button {
+  padding: 0.8rem 1.5rem;
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.3s ease;
+}
+.delete-button:hover {
+  background-color: #c0392b;
+}
+.delete-button:disabled {
+  background-color: #e0b4b4;
+  cursor: not-allowed;
 }
 </style>
