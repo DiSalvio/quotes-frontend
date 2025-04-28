@@ -51,6 +51,13 @@
     <div v-else-if="quotes.length === 0" class="no-quotes">
       No quotes found. Add some through the form or upload an image!
     </div>
+    
+    <div v-if="isEditing" class="edit-quote-form">
+      <textarea v-model="editText" placeholder="Edit quote text"></textarea>
+      <input v-model="editAuthor" type="text" placeholder="Edit author (optional)" />
+      <button @click="saveEdit">Save</button>
+      <button @click="cancelEditing">Cancel</button>
+    </div>
 
     <div v-else class="quote-card">
       <transition name="fade" mode="out-in">
@@ -64,6 +71,7 @@
       <div class="controls">
         <button @click="prevQuote" class="nav-button">← Previous</button>
         <button @click="nextQuote" class="nav-button">Next →</button>
+        <button @click="startEditing" class="edit-button">Edit</button>
         <button @click="deleteQuote" class="delete-button" :disabled="deleting">
           {{ deleting ? 'Deleting...' : 'Delete' }}
         </button>
@@ -94,7 +102,10 @@ export default {
       deleteError: null,
       extractedText: null,
       extractedAuthor: '',
-      editing: false
+      editing: false,
+      isEditing: false,
+      editText: '',
+      editAuthor: ''
     }
   },
   computed: {
@@ -189,8 +200,35 @@ export default {
       } finally {
         this.editing = false
       }
+    },
+    startEditing() {
+      if (!this.quotes.length) return;
+      this.isEditing = true;
+      this.editText = this.currentQuote.text;
+      this.editAuthor = this.currentQuote.author || '';
+    },
+    cancelEditing() {
+      this.isEditing = false;
+      this.editText = '';
+      this.editAuthor = '';
+    },
+    async saveEdit() {
+      if (!this.editText.trim()) return;
+      try {
+        const payload = { text: this.editText.trim() };
+        if (this.editAuthor.trim()) {
+          payload.author = this.editAuthor.trim();
+        }
+        const quoteId = this.currentQuote.id;
+        const response = await axios.put(`/api/quotes/${quoteId}/`, payload);
+        this.quotes[this.currentIndex] = response.data;
+        this.isEditing = false;
+      } catch (err) {
+        console.error('Failed to update quote', err);
+      }
     }
   }
+
 }
 </script>
 
@@ -374,5 +412,47 @@ export default {
   color: #95a5a6;
   font-style: italic;
   margin: 2rem 0;
+}
+
+.edit-button {
+  background-color: #f39c12;
+  color: white;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 1rem;
+  transition: background-color 0.2s;
+}
+
+.edit-button:hover {
+  background-color: #e67e22;
+}
+.edit-quote-form textarea,
+.edit-quote-form input[type="text"] {
+  width: 100%;
+  padding: 0.8rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.edit-quote-form button {
+  padding: 0.8rem 1.5rem;
+  margin-right: 0.5rem;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+}
+
+.edit-quote-form button:first-of-type {
+  background-color: #27ae60;
+  color: white;
+}
+
+.edit-quote-form button:last-of-type {
+  background-color: #c0392b;
+  color: white;
 }
 </style>
