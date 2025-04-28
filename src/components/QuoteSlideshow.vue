@@ -2,7 +2,27 @@
   <div class="slideshow-container">
     <h1>Inspirational Quotes</h1>
 
-    <!-- Add Quote Form -->
+    <!-- Image Upload Component -->
+    <ImageUpload @text-extracted="handleExtractedText" />
+
+    <!-- Extracted Text Review -->
+    <div v-if="extractedText !== null" class="extracted-text">
+      <textarea
+        v-model="extractedText"
+        placeholder="Edit extracted quote text..."
+      ></textarea>
+      <input
+        v-model="extractedAuthor"
+        type="text"
+        placeholder="Edit extracted author (optional)"
+        style="margin-top: 0.5rem; width: 100%;"
+      />
+      <button @click="saveExtractedText" class="save-button">
+        {{ editing ? 'Saving...' : 'Save as Quote' }}
+      </button>
+    </div>
+
+    <!-- Existing Add Quote Form -->
     <form class="add-quote-form" @submit.prevent="addQuote">
       <input
         v-model="newQuote"
@@ -22,14 +42,14 @@
       </button>
     </form>
     <div v-if="addError" class="error">{{ addError }}</div>
-    <div v-if="deleteError" class="error">{{ deleteError }}</div>
 
+    <!-- Quote Display -->
     <div v-if="loading" class="loading">
       Loading quotes...
     </div>
 
     <div v-else-if="quotes.length === 0" class="no-quotes">
-      No quotes found. Add some through the form above!
+      No quotes found. Add some through the form or upload an image!
     </div>
 
     <div v-else class="quote-card">
@@ -48,15 +68,18 @@
           {{ deleting ? 'Deleting...' : 'Delete' }}
         </button>
       </div>
-
     </div>
   </div>
 </template>
 
 <script>
-import axios from 'axios'
+import axios from 'axios';
+import ImageUpload from './ImageUpload.vue';
 
 export default {
+  components: {
+    ImageUpload
+  },
   data() {
     return {
       quotes: [],
@@ -64,9 +87,14 @@ export default {
       loading: true,
       error: null,
       newQuote: '',
-      newAuthor: '',    // <-- new data property for author
+      newAuthor: '',
       adding: false,
-      addError: null
+      addError: null,
+      deleting: false,
+      deleteError: null,
+      extractedText: null,
+      extractedAuthor: '',
+      editing: false
     }
   },
   computed: {
@@ -110,7 +138,7 @@ export default {
         }
         const response = await axios.post('/api/quotes/', payload)
         this.quotes.push(response.data)
-        this.currentIndex = this.quotes.length - 1 // show the new quote
+        this.currentIndex = this.quotes.length - 1
         this.newQuote = ''
         this.newAuthor = ''
       } catch (err) {
@@ -138,6 +166,29 @@ export default {
       } finally {
         this.deleting = false
       }
+    },
+    handleExtractedText({extracted_text, extracted_author}) {
+      this.extractedText = extracted_text
+      this.extractedAuthor = extracted_author || ''
+    },
+    async saveExtractedText() {
+      if (!this.extractedText?.trim()) return
+      this.editing = true
+      try {
+        const payload = { text: this.extractedText.trim() }
+        if (this.extractedAuthor.trim()) {
+          payload.author = this.extractedAuthor.trim()
+        }
+        const response = await axios.post('/api/quotes/', payload)
+        this.quotes.push(response.data)
+        this.currentIndex = this.quotes.length - 1
+        this.extractedText = null
+        this.extractedAuthor = ''
+      } catch (err) {
+        console.error('Error saving extracted text:', err)
+      } finally {
+        this.editing = false
+      }
     }
   }
 }
@@ -146,60 +197,101 @@ export default {
 <style scoped>
 .slideshow-container {
   text-align: center;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
 }
 
+/* Image Upload Section */
+.image-upload {
+  margin: 2rem 0;
+}
+
+/* Extracted Text Review */
+.extracted-text {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 2rem 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.extracted-text textarea {
+  width: 100%;
+  height: 100px;
+  padding: 1rem;
+  margin: 0.5rem 0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.extracted-text input[type="text"] {
+  padding: 0.8rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  width: 100%;
+}
+
+.save-button {
+  padding: 0.8rem 1.5rem;
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.save-button:hover {
+  background-color: #1976D2;
+}
+
+.save-button:disabled {
+  background-color: #90CAF9;
+  cursor: not-allowed;
+}
+
+/* Add Quote Form */
 .add-quote-form {
-  display: flex;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
   gap: 1rem;
-  margin-bottom: 2rem;
+  margin: 2rem 0;
 }
 
 .add-quote-form input {
-  flex: 1;
-  padding: 0.6rem;
-  border: 1px solid #ccc;
+  padding: 0.8rem;
+  border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 1rem;
 }
 
 .add-quote-form button {
-  padding: 0.6rem 1.2rem;
-  background-color: #42b983;
+  padding: 0.8rem 1.5rem;
+  background-color: #4CAF50;
   color: white;
   border: none;
   border-radius: 4px;
-  font-size: 1rem;
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
 .add-quote-form button:disabled {
-  background-color: #b2dfdb;
+  background-color: #A5D6A7;
   cursor: not-allowed;
 }
 
-.error {
-  color: #d32f2f;
-  margin-bottom: 1rem;
-}
-
-.loading, .no-quotes {
-  font-size: 1.2rem;
-  color: #666;
-  margin: 2rem 0;
-}
-
+/* Quote Display */
 .quote-card {
-  background: #ffffff;
-  border-radius: 10px;
+  background: white;
+  border-radius: 12px;
   padding: 2rem;
   margin: 2rem 0;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  min-height: 200px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
 
 .quote-text {
@@ -211,22 +303,23 @@ export default {
 
 .quote-author {
   font-size: 1.1rem;
-  color: #888;
-  margin: 0.5rem 0 0 0;
+  color: #7f8c8d;
   font-style: italic;
+  margin: 0.5rem 0;
 }
 
 .quote-number {
-  color: #7f8c8d;
+  color: #95a5a6;
   font-size: 0.9rem;
-  margin: 0;
+  margin: 1rem 0 0 0;
 }
 
+/* Navigation Controls */
 .controls {
-  margin-top: 2rem;
   display: flex;
   justify-content: center;
   gap: 1rem;
+  margin-top: 2rem;
 }
 
 .nav-button {
@@ -234,40 +327,52 @@ export default {
   background-color: #42b983;
   color: white;
   border: none;
-  border-radius: 5px;
+  border-radius: 4px;
   cursor: pointer;
-  transition: background-color 0.3s ease;
-  font-size: 1rem;
+  transition: background-color 0.2s;
 }
 
 .nav-button:hover {
   background-color: #33a06f;
 }
 
+.delete-button {
+  background-color: #e74c3c;
+}
+
+.delete-button:hover {
+  background-color: #c0392b;
+}
+
+/* Transitions */
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.5s ease;
+  transition: opacity 0.3s ease;
 }
 
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
 }
-.delete-button {
-  padding: 0.8rem 1.5rem;
-  background-color: #e74c3c;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: background-color 0.3s ease;
+
+/* Utility Classes */
+.error {
+  color: #e74c3c;
+  margin: 1rem 0;
+  padding: 1rem;
+  background: #fdeded;
+  border-radius: 4px;
 }
-.delete-button:hover {
-  background-color: #c0392b;
+
+.loading {
+  color: #7f8c8d;
+  font-size: 1.2rem;
+  margin: 2rem 0;
 }
-.delete-button:disabled {
-  background-color: #e0b4b4;
-  cursor: not-allowed;
+
+.no-quotes {
+  color: #95a5a6;
+  font-style: italic;
+  margin: 2rem 0;
 }
 </style>
